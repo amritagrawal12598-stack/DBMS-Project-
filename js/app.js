@@ -1145,6 +1145,308 @@ function refreshDbTable() {
 });
 
 // ═══════════════════════════════════════════════════════════════
+// ALL ORDERS DASHBOARD
+// ═══════════════════════════════════════════════════════════════
+State.ordersFilter    = 'all';
+State.ordersSearch    = '';
+State.expandedOrders  = new Set();  // parcel_ids currently expanded
+
+function showOrdersScreen() {
+  State.ordersFilter   = 'all';
+  State.ordersSearch   = '';
+  State.expandedOrders = new Set();
+  showScreen('orders');
+  renderOrdersScreen();
+  resetInactivityTimer();
+}
+
+function refreshOrdersScreen() {
+  renderOrdersScreen();
+  showToast('Orders refreshed', 'info');
+}
+
+function setOrderFilter(filter) {
+  State.ordersFilter = filter;
+  $all('.filter-pill').forEach(p => p.classList.remove('active'));
+  const active = $(`filter-${filter === 'all' ? 'all' : filter.toLowerCase()}`);
+  if (active) active.classList.add('active');
+  renderOrdersScreen();
+  resetInactivityTimer();
+}
+
+function filterOrders() {
+  State.ordersSearch = $('orders-search')?.value.trim().toLowerCase() || '';
+  renderOrdersScreen();
+}
+
+function getFilteredOrders() {
+  return DB.parcels.filter(p => {
+    // Status filter
+    if (State.ordersFilter !== 'all' && p.status !== State.ordersFilter) return false;
+    // Search filter
+    if (State.ordersSearch) {
+      const q   = State.ordersSearch;
+      const stu = DB.students.find(s => s.student_id === p.student_id);
+      const par = DB.delivery_partners.find(d => d.partner_id === p.partner_id);
+      const stk = DB.parcel_stickers.find(s => s.parcel_id === p.parcel_id);
+      const hay = [
+        p.parcel_id, p.tracking_no, p.status,
+        stu?.name, stu?.student_id, stu?.hostel, stu?.room_no, stu?.mobile_no,
+        par?.company, par?.name,
+        stk?.sticker_id, stk?.qr_token,
+      ].join(' ').toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
+function renderOrdersScreen() {
+  const orders   = getFilteredOrders();
+  const allTotal = DB.parcels.length;
+  const stored   = DB.parcels.filter(p => p.status === 'STORED').length;
+  const collected= DB.parcels.filter(p => p.status === 'COLLECTED').length;
+
+  // Update count badge
+  const badge = $('orders-count-badge');
+  if (badge) badge.textContent = `Showing ${orders.length} of ${allTotal} parcels`;
+
+  const body = $('orders-body');
+  if (!body) return;
+
+  if (!orders.length) {
+    body.innerHTML = `
+      <div class="empty-state" style="margin-top:60px;">
+        <span class="empty-icon">📭</span>
+        <p>No orders match your search / filter.</p>
+      </div>`;
+    return;
+  }
+
+  // Sort newest first
+  const sorted = [...orders].sort((a, b) => new Date(b.arrived_at) - new Date(a.arrived_at));
+
+  // Summary chips
+  body.innerHTML = `
+    <div class="orders-summary-strip" style="margin-bottom:16px;">
+      <div class="osum-chip total">📦 ${allTotal} Total</div>
+      <div class="osum-chip stored">🔵 ${stored} In Storage</div>
+      <div class="osum-chip collected">✅ ${collected} Collected</div>
+    </div>
+    ${sorted.map(p => renderOrderCard(p)).join('')}
+  `;
+}
+
+function renderOrderCard(parcel) {
+  const details    = DB.getParcelDetails(parcel.parcel_id);
+  const { student, partner, guard, sticker, location, verification, logs } = details;
+  const isStored   = parcel.status === 'STORED';
+  const isExpanded = State.expandedOrders.has(parcel.parcel_id);
+  const collection = DB.parcel_collections.find(c => c.parcel_id === parcel.parcel_id);
+
+  return `
+  <div class="order-card ${isExpanded ? 'expanded' : ''}" id="ocard-${esc(parcel.parcel_id)}">
+
+    <!-- ── Summary row (always visible) ── -->
+    <div class="order-summary" onclick="toggleOrderExpand('${esc(parcel.parcel_id)}')">
+
+      <div class="order-student">
+        <div class="os-name">${esc(student?.name || '—')}</div>
+        <div class="os-id">${esc(student?.student_id || '—')}</div>
+        <div class="os-hostel">${esc(student?.hostel || '—')} · Room ${esc(student?.room_no || '—')}</div>
+      </div>
+
+      <div class="order-tracking">
+        <div class="ot-company">${companyIcon(partner?.company || '')} ${esc(partner?.company || '—')}</div>
+        <div class="ot-track">${esc(parcel.tracking_no)}</div>
+      </div>
+
+      <div class="order-location">
+        ${location
+          ? `<div class="ol-loc">📍 ${esc(location.room)}</div>
+             <div class="ol-id">${esc(location.rack)} · ${esc(location.shelf)}</div>`
+          : `<div class="ol-loc" style="color:var(--text-muted);">No location</div>`}
+      </div>
+
+      <div class="order-time">
+        <div class="ot-label">Arrived</div>
+        <div class="ot-val">${DB.formatTs(parcel.arrived_at)}</div>
+      </div>
+
+      <div class="order-status-col">
+        <span class="order-status-badge ${isStored ? 'stored' : 'collected'}">
+          ${isStored ? '📦 Stored' : '✅ Collected'}
+        </span>
+      </div>
+
+      <div class="order-expand-col">
+        <button class="expand-btn ${isExpanded ? 'open' : ''}" title="Expand details">▼</button>
+      </div>
+    </div>
+
+    <!-- ── Expanded detail panel ── -->
+    <div class="order-detail-panel ${isExpanded ? 'open' : ''}">
+
+      <div class="order-detail-grid">
+
+        <div class="odg-cell">
+          <div class="odg-label">📦 Parcel ID</div>
+          <div class="odg-value mono">${esc(parcel.parcel_id)}</div>
+        </div>
+
+        <div class="odg-cell">
+          <div class="odg-label">📱 Student Mobile</div>
+          <div class="odg-value">${esc(student?.mobile_no || '—')}</div>
+        </div>
+
+        <div class="odg-cell">
+          <div class="odg-label">🚚 Partner Mobile</div>
+          <div class="odg-value">${esc(partner?.name || '—')} · ${esc(partner?.mobile_no || '—')}</div>
+        </div>
+
+        <div class="odg-cell">
+          <div class="odg-label">🛡️ Guard</div>
+          <div class="odg-value">${esc(guard?.name || '—')} (${esc(guard?.guard_id || '—')})</div>
+        </div>
+
+        <div class="odg-cell">
+          <div class="odg-label">🏷️ Sticker ID</div>
+          <div class="odg-value mono">${esc(sticker?.sticker_id || '—')}</div>
+        </div>
+
+        <div class="odg-cell">
+          <div class="odg-label">🔗 QR Token</div>
+          <div class="odg-value mono" style="font-size:11px;">${sticker ? esc(sticker.qr_token.slice(0,24)) + '…' : '—'}</div>
+        </div>
+
+        <div class="odg-cell">
+          <div class="odg-label">📍 Storage Location</div>
+          <div class="odg-value">${location ? `${esc(location.room)} · ${esc(location.rack)} · ${esc(location.shelf)}` : '—'}</div>
+        </div>
+
+        <div class="odg-cell">
+          <div class="odg-label">🕐 Arrived At</div>
+          <div class="odg-value">${DB.formatTs(parcel.arrived_at)}</div>
+        </div>
+
+        ${collection ? `
+        <div class="odg-cell">
+          <div class="odg-label">📤 Collected At</div>
+          <div class="odg-value">${DB.formatTs(collection.collected_at)}</div>
+        </div>` : ''}
+
+      </div>
+
+      <!-- OTP -->
+      ${verification && isStored ? `
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">🔑 Collection OTP</div>
+        <div class="otp-inline">
+          <span style="font-size:12px;color:var(--text-muted);">OTP:</span>
+          <span class="otp-num">${esc(verification.otp_hash)}</span>
+          <span style="font-size:11px;color:var(--text-muted);">· Valid until ${DB.formatTs(verification.expiry_time)}</span>
+        </div>
+      </div>` : ''}
+
+      <!-- Audit log timeline -->
+      ${logs && logs.length ? `
+      <div style="margin-bottom:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">📋 Audit Trail</div>
+        <div class="mini-audit">
+          ${logs.map(l => `
+            <div class="mini-audit-row">
+              <div class="mini-audit-dot ${l.action.includes('COLLECTED') ? 'collected' : 'arrived'}"></div>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--blue-500);">${esc(l.action)}</span>
+              <span style="color:var(--text-muted);">— ${esc(DB.security_guards.find(g=>g.guard_id===l.guard_id)?.name || l.guard_id)}</span>
+              <span style="margin-left:auto;font-size:11px;color:var(--text-muted);">${DB.formatTs(l.logged_at)}</span>
+            </div>`).join('')}
+        </div>
+      </div>` : ''}
+
+      <!-- Action buttons -->
+      <div class="order-actions-row">
+        ${isStored ? `
+          <button class="btn-sm-green" onclick="quickCollectFromOrders('${esc(parcel.parcel_id)}','${esc(student?.student_id || '')}'); event.stopPropagation();">
+            📤 Mark Collected
+          </button>` : ''}
+        <button class="btn-sm-blue" onclick="openGuardPanelWithParcel('${esc(parcel.tracking_no)}'); event.stopPropagation();">
+          🛡️ Open in Guard Panel
+        </button>
+      </div>
+
+      <!-- Quick collect inline -->
+      <div class="collect-inline" id="quick-collect-${esc(parcel.parcel_id)}" style="display:none;">
+        <h5>📤 Confirm Collection — Select Guard</h5>
+        <div class="guard-selector" style="margin-bottom:12px;">
+          ${DB.security_guards.map(g => `
+            <div class="guard-opt" id="qcg-${esc(parcel.parcel_id)}-${esc(g.guard_id)}"
+                 onclick="selectQuickCollectGuard('${esc(parcel.parcel_id)}','${esc(g.guard_id)}'); event.stopPropagation();">
+              <div class="guard-opt-name">${esc(g.name)}</div>
+              <div class="guard-opt-id">${esc(g.guard_id)}</div>
+            </div>`).join('')}
+        </div>
+        <button class="btn-sm-green" style="width:100%;justify-content:center;padding:12px;"
+          onclick="confirmQuickCollect('${esc(parcel.parcel_id)}','${esc(student?.student_id || '')}'); event.stopPropagation();">
+          ✅ Confirm Collection
+        </button>
+      </div>
+
+    </div><!-- /order-detail-panel -->
+  </div><!-- /order-card -->`;
+}
+
+function toggleOrderExpand(parcel_id) {
+  if (State.expandedOrders.has(parcel_id)) {
+    State.expandedOrders.delete(parcel_id);
+  } else {
+    State.expandedOrders.add(parcel_id);
+  }
+  renderOrdersScreen();
+  resetInactivityTimer();
+}
+
+// Quick collect from orders screen
+let _quickCollectGuard = {};
+
+function quickCollectFromOrders(parcel_id, student_id) {
+  const box = $(`quick-collect-${parcel_id}`);
+  if (box) box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+function selectQuickCollectGuard(parcel_id, guard_id) {
+  _quickCollectGuard[parcel_id] = guard_id;
+  // Highlight selected guard
+  DB.security_guards.forEach(g => {
+    const el = $(`qcg-${parcel_id}-${g.guard_id}`);
+    if (el) el.classList.toggle('selected', g.guard_id === guard_id);
+  });
+}
+
+function confirmQuickCollect(parcel_id, student_id) {
+  const guardId = _quickCollectGuard[parcel_id] || State.activeGuard?.guard_id;
+  if (!guardId) { showToast('Please select a guard first', 'warning'); return; }
+  DB.recordCollection(parcel_id, student_id, guardId);
+  DB.addAuditLog(parcel_id, guardId, 'PARCEL_COLLECTED');
+  delete _quickCollectGuard[parcel_id];
+  updateIdleStats();
+  refreshDbInspector();
+  renderOrdersScreen();
+  showToast('Parcel marked as COLLECTED! ✅', 'success');
+}
+
+function openGuardPanelWithParcel(tracking_no) {
+  triggerGuardPanel();
+  // Pre-fill the guard search after panel opens
+  setTimeout(() => {
+    const inp = $('guard-search-input');
+    if (inp) {
+      inp.value = tracking_no;
+      guardSearchParcel();
+    }
+  }, 400);
+}
+
+// ═══════════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════════
 function initApp() {
@@ -1164,3 +1466,4 @@ function initApp() {
 }
 
 window.addEventListener('DOMContentLoaded', initApp);
+

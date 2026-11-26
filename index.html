@@ -114,6 +114,9 @@
         <button class="btn-db-inspector" id="btn-idle-db" onclick="toggleDbInspector()">
           🗄️ Schema Inspector
         </button>
+        <button class="btn-orders" id="btn-all-orders" onclick="showOrdersScreen()">
+          📋 All Orders
+        </button>
         <button class="btn-guard" id="btn-guard-view" onclick="triggerGuardPanel()">
           🛡️ Guard / Admin View
         </button>
@@ -217,6 +220,49 @@
 
     </div><!-- /workflow-body -->
   </div><!-- /screen-workflow -->
+
+
+  <!-- ╔════════════════════════════════════════════════════════╗
+       ║  SCREEN 3: ALL ORDERS DASHBOARD                       ║
+       ╚════════════════════════════════════════════════════════╝ -->
+  <div id="screen-orders" class="screen">
+
+    <!-- Orders header -->
+    <div class="workflow-header">
+      <div class="workflow-logo">
+        <div class="logo-emblem">JK</div>
+        <span>All Orders Dashboard</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span id="orders-count-badge" style="font-size:12px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;"></span>
+        <button class="btn-cancel" onclick="resetToIdle()">🏠 Back to Kiosk</button>
+      </div>
+    </div>
+
+    <!-- Filters bar -->
+    <div class="orders-filterbar">
+      <div class="search-box" style="flex:1;max-width:420px;">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="orders-search"
+          placeholder="Search by student name, ID, tracking no, sticker ID…"
+          oninput="filterOrders()" autocomplete="off" />
+      </div>
+      <div class="orders-filter-pills">
+        <button class="filter-pill active" id="filter-all"       onclick="setOrderFilter('all')">All</button>
+        <button class="filter-pill"        id="filter-stored"    onclick="setOrderFilter('STORED')">📦 In Storage</button>
+        <button class="filter-pill"        id="filter-collected" onclick="setOrderFilter('COLLECTED')">✅ Collected</button>
+      </div>
+      <button class="btn-secondary" style="min-height:44px;font-size:13px;" onclick="refreshOrdersScreen()">
+        🔄 Refresh
+      </button>
+    </div>
+
+    <!-- Orders list -->
+    <div class="orders-body" id="orders-body">
+      <!-- Populated by renderOrdersScreen() -->
+    </div>
+
+  </div><!-- /screen-orders -->
 
 </div><!-- /app -->
 
