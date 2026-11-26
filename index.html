@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <title>Smart Parcel Kiosk — JK Lakshmipat University</title>
+  <meta name="description" content="Smart Parcel Management & Sticker Kiosk for JK Lakshmipat University Hostels. Log parcel arrivals, generate stickers, and manage collections." />
+  <meta name="theme-color" content="#04080f" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/print.css" />
+
+  <!-- QR Code Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     BACKGROUND LAYERS
+     ══════════════════════════════════════════════════════════ -->
+<div class="bg-gradient"></div>
+<div class="bg-grid"></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     TOAST CONTAINER
+     ══════════════════════════════════════════════════════════ -->
+<div id="toast-container" aria-live="polite"></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     HIDDEN PRINT AREA (populated before window.print())
+     ══════════════════════════════════════════════════════════ -->
+<div id="sticker-print-area" style="display:none;"></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     APP ROOT
+     ══════════════════════════════════════════════════════════ -->
+<div id="app">
+
+  <!-- ╔════════════════════════════════════════════════════════╗
+       ║  SCREEN 1: IDLE / ATTRACT                             ║
+       ╚════════════════════════════════════════════════════════╝ -->
+  <div id="screen-idle" class="screen active">
+
+    <!-- Top bar -->
+    <div class="idle-topbar">
+      <div class="jklu-logo">
+        <div class="logo-emblem">JK</div>
+        <div class="logo-text">
+          <h1>JK Lakshmipat University</h1>
+          <p>Smart Parcel Management System · Hostel Kiosk</p>
+        </div>
+      </div>
+      <div class="idle-clock">
+        <div class="clock-time" id="clock-time">12:00<span>:00 PM</span></div>
+        <div class="clock-date" id="clock-date">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Hero section -->
+    <div class="idle-hero">
+      <div class="hero-icon">📦</div>
+
+      <div class="hero-title">
+        <h2>Smart Parcel Kiosk</h2>
+        <p>Scan · Log · Store · Notify · Collect</p>
+      </div>
+
+      <!-- Live stats -->
+      <div class="idle-stats">
+        <div class="stat-card blue">
+          <div class="stat-value" id="stat-arrived">—</div>
+          <div class="stat-label">Arrived Today</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-value" id="stat-stored">—</div>
+          <div class="stat-label">In Storage</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-value" id="stat-collected">—</div>
+          <div class="stat-label">Collected Today</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-value" id="stat-otps">—</div>
+          <div class="stat-label">Active OTPs</div>
+        </div>
+      </div>
+
+      <!-- Primary CTA -->
+      <button class="btn-cta" id="btn-start-workflow" onclick="startWorkflow()">
+        <span class="btn-icon">📦</span>
+        Generate Parcel Sticker / Log Arrival
+      </button>
+
+      <p style="font-size:13px;color:var(--text-muted);margin-top:-8px;">
+        Touch to begin · PIN required for Guard / Admin access
+      </p>
+    </div>
+
+    <!-- Bottom bar -->
+    <div class="idle-bottom">
+      <div class="idle-status-pill">
+        <div class="pulse-dot"></div>
+        System Online · Kiosk Ready
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <button class="btn-db-inspector" id="btn-idle-db" onclick="toggleDbInspector()">
+          🗄️ Schema Inspector
+        </button>
+        <button class="btn-guard" id="btn-guard-view" onclick="triggerGuardPanel()">
+          🛡️ Guard / Admin View
+        </button>
+      </div>
+    </div>
+  </div><!-- /screen-idle -->
+
+
+  <!-- ╔════════════════════════════════════════════════════════╗
+       ║  SCREEN 2: WORKFLOW (Steps 1–4)                       ║
+       ╚════════════════════════════════════════════════════════╝ -->
+  <div id="screen-workflow" class="screen">
+
+    <!-- Workflow header with progress -->
+    <div class="workflow-header">
+      <div class="workflow-logo">
+        <div class="logo-emblem">JK</div>
+        <span>Parcel Log &amp; Sticker</span>
+      </div>
+
+      <!-- Step progress -->
+      <div class="step-progress">
+        <!-- Step 1 -->
+        <div class="step-item active" id="step-prog-1">
+          <div class="step-num">1</div>
+          <div class="step-label">Student</div>
+        </div>
+        <div class="step-connector" id="step-conn-1"></div>
+        <!-- Step 2 -->
+        <div class="step-item" id="step-prog-2">
+          <div class="step-num">2</div>
+          <div class="step-label">Parcel Details</div>
+        </div>
+        <div class="step-connector" id="step-conn-2"></div>
+        <!-- Step 3 -->
+        <div class="step-item" id="step-prog-3">
+          <div class="step-num">3</div>
+          <div class="step-label">Storage</div>
+        </div>
+        <div class="step-connector" id="step-conn-3"></div>
+        <!-- Step 4 -->
+        <div class="step-item" id="step-prog-4">
+          <div class="step-num">🏷️</div>
+          <div class="step-label">Sticker</div>
+        </div>
+      </div>
+
+      <button class="btn-cancel" onclick="resetToIdle()">✖ Cancel</button>
+    </div>
+
+    <!-- Scrollable body -->
+    <div class="workflow-body">
+
+      <!-- ── STEP 1: Select Student ──────────────────────── -->
+      <div class="step-panel active" id="step-1">
+        <div class="step-heading">
+          <div class="step-heading-num">1</div>
+          <div>
+            <h3>Select / Lookup Student</h3>
+            <p>Search by Student ID, Name, or Mobile Number</p>
+          </div>
+        </div>
+        <div id="step-1-content"></div>
+      </div>
+
+      <!-- ── STEP 2: Parcel & Delivery Details ──────────── -->
+      <div class="step-panel" id="step-2">
+        <div class="step-heading">
+          <div class="step-heading-num">2</div>
+          <div>
+            <h3>Parcel &amp; Delivery Details</h3>
+            <p>Select delivery partner, enter tracking number &amp; receiving guard</p>
+          </div>
+        </div>
+        <div id="step-2-content"></div>
+      </div>
+
+      <!-- ── STEP 3: Assign Storage Location ────────────── -->
+      <div class="step-panel" id="step-3">
+        <div class="step-heading">
+          <div class="step-heading-num">3</div>
+          <div>
+            <h3>Assign Storage Location</h3>
+            <p>Pick an available rack &amp; shelf for this parcel</p>
+          </div>
+        </div>
+        <div id="step-3-content"></div>
+      </div>
+
+      <!-- ── STEP 4: Sticker Preview ─────────────────────── -->
+      <div class="step-panel" id="step-4">
+        <div class="step-heading">
+          <div class="step-heading-num">🏷️</div>
+          <div>
+            <h3>Sticker Generated</h3>
+            <p>Print the label and affix it to the parcel</p>
+          </div>
+        </div>
+        <div id="step-4-content"></div>
+      </div>
+
+    </div><!-- /workflow-body -->
+  </div><!-- /screen-workflow -->
+
+</div><!-- /app -->
+
+
+<!-- ══════════════════════════════════════════════════════════
+     GUARD PANEL DRAWER (slides in from right)
+     ══════════════════════════════════════════════════════════ -->
+<div id="drawer-guard" role="dialog" aria-label="Guard Quick-Check Panel">
+  <div class="drawer-header">
+    <div class="drawer-title">🛡️ Guard Quick-Check</div>
+    <button class="btn-close" onclick="closeGuardPanel()" aria-label="Close guard panel">✕</button>
+  </div>
+  <div class="drawer-body" id="guard-panel-body">
+    <!-- Populated by renderGuardPanel() -->
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     DB INSPECTOR DRAWER (slides up from bottom)
+     ══════════════════════════════════════════════════════════ -->
+<div id="drawer-db" role="dialog" aria-label="Database Inspector">
+  <div class="db-inspector-header">
+    <div class="db-inspector-title">
+      🗄️ Live DB Inspector
+      <span style="font-size:11px;color:var(--text-muted);font-weight:400;font-family:'JetBrains Mono',monospace;">
+        — 10 tables / in-memory SQL simulation
+      </span>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="db-row-count" id="db-row-count">0 rows</span>
+      <button class="btn-close" onclick="toggleDbInspector()" aria-label="Close DB inspector">✕</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="db-tabs">
+    <div class="db-tab active" data-tab="parcels"           onclick="switchDbTab('parcels')">PARCELS</div>
+    <div class="db-tab"        data-tab="parcel_stickers"   onclick="switchDbTab('parcel_stickers')">STICKERS</div>
+    <div class="db-tab"        data-tab="parcel_storage"    onclick="switchDbTab('parcel_storage')">STORAGE</div>
+    <div class="db-tab"        data-tab="audit_logs"        onclick="switchDbTab('audit_logs')">AUDIT LOGS</div>
+    <div class="db-tab"        data-tab="verification_codes" onclick="switchDbTab('verification_codes')">OTPs</div>
+    <div class="db-tab"        data-tab="parcel_collections" onclick="switchDbTab('parcel_collections')">COLLECTIONS</div>
+    <div class="db-tab"        data-tab="students"          onclick="switchDbTab('students')">STUDENTS</div>
+    <div class="db-tab"        data-tab="delivery_partners" onclick="switchDbTab('delivery_partners')">PARTNERS</div>
+  </div>
+
+  <!-- Table content -->
+  <div class="db-table-wrap">
+    <div id="db-table-container">
+      <!-- Populated by refreshDbTable() -->
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     MODAL: PIN Entry
+     ══════════════════════════════════════════════════════════ -->
+<div id="modal-pin" class="modal-overlay" role="dialog" aria-modal="true" aria-label="PIN Authentication">
+  <div class="modal-box" style="max-width:380px;">
+    <div style="text-align:center;margin-bottom:20px;">
+      <div style="font-size:48px;">🔐</div>
+    </div>
+    <div class="modal-title" style="text-align:center;">Guard / Admin PIN</div>
+    <div class="modal-sub" style="text-align:center;">Enter your 4-digit security PIN<br><small style="color:var(--text-muted);">Demo PIN: 1 2 3 4</small></div>
+
+    <!-- PIN dots -->
+    <div class="pin-display">
+      <div class="pin-dot" id="pin-dot-0"></div>
+      <div class="pin-dot" id="pin-dot-1"></div>
+      <div class="pin-dot" id="pin-dot-2"></div>
+      <div class="pin-dot" id="pin-dot-3"></div>
+    </div>
+
+    <!-- Error message -->
+    <p id="pin-error" style="color:var(--red-400);font-size:13px;text-align:center;margin-bottom:12px;min-height:20px;"></p>
+
+    <!-- Numeric pad -->
+    <div class="pin-pad">
+      <button class="pin-btn" onclick="pinInput('1')" id="pin-1">1</button>
+      <button class="pin-btn" onclick="pinInput('2')" id="pin-2">2</button>
+      <button class="pin-btn" onclick="pinInput('3')" id="pin-3">3</button>
+      <button class="pin-btn" onclick="pinInput('4')" id="pin-4">4</button>
+      <button class="pin-btn" onclick="pinInput('5')" id="pin-5">5</button>
+      <button class="pin-btn" onclick="pinInput('6')" id="pin-6">6</button>
+      <button class="pin-btn" onclick="pinInput('7')" id="pin-7">7</button>
+      <button class="pin-btn" onclick="pinInput('8')" id="pin-8">8</button>
+      <button class="pin-btn" onclick="pinInput('9')" id="pin-9">9</button>
+      <button class="pin-btn action" onclick="closePinModal()" id="pin-cancel" style="font-size:13px;color:var(--text-secondary);">Cancel</button>
+      <button class="pin-btn" onclick="pinInput('0')" id="pin-0">0</button>
+      <button class="pin-btn action del" onclick="pinDelete()" id="pin-del">⌫</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     MODAL: Inactivity Warning
+     ══════════════════════════════════════════════════════════ -->
+<div id="modal-inactivity" class="modal-overlay" role="alertdialog" aria-modal="true" aria-label="Session Timeout Warning">
+  <div class="modal-box" style="max-width:420px;text-align:center;">
+    <div style="font-size:52px;margin-bottom:16px;">⏱️</div>
+    <div class="modal-title">Session Timing Out</div>
+    <div class="modal-sub">No activity detected. Returning to idle screen in:</div>
+
+    <div class="inactivity-countdown" id="inactivity-count">30</div>
+
+    <div class="inactivity-bar" style="margin-bottom:28px;">
+      <div class="inactivity-fill" id="inactivity-fill" style="width:100%;"></div>
+    </div>
+
+    <button class="btn-primary" onclick="keepAlive()" id="btn-keep-alive"
+      style="width:100%;min-height:56px;font-size:16px;justify-content:center;">
+      👆 Continue Session
+    </button>
+    <button class="btn-secondary" onclick="resetToIdle()" id="btn-go-idle"
+      style="width:100%;min-height:48px;margin-top:10px;justify-content:center;">
+      🏠 Return to Kiosk
+    </button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     SCRIPTS
+     ══════════════════════════════════════════════════════════ -->
+<script src="js/db.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,118 @@
+/* ================================================================
+   Print Styles — Thermal / Label Sticker Layout
+   JK Lakshmipat University Smart Parcel Kiosk
+   Optimised for 100mm × 150mm (4" × 6") thermal label
+   ================================================================ */
+
+@media print {
+
+  /* Hide everything except the sticker */
+  body > * { display: none !important; }
+  #sticker-print-area { display: block !important; }
+
+  /* Page setup */
+  @page {
+    size: 100mm 150mm;
+    margin: 4mm;
+  }
+
+  #sticker-print-area {
+    display: block;
+    width: 92mm;
+    min-height: 142mm;
+    background: #ffffff;
+    color: #000000;
+    font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    padding: 0;
+    margin: 0;
+    page-break-after: avoid;
+  }
+
+  /* Sticker header */
+  .sp-header {
+    text-align: center;
+    border-bottom: 1.5px solid #000;
+    padding-bottom: 3mm;
+    margin-bottom: 3mm;
+  }
+  .sp-univ {
+    font-size: 6pt; font-weight: 800;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: #1d4ed8;
+  }
+  .sp-title {
+    font-size: 10pt; font-weight: 900;
+    color: #000; margin: 1mm 0 0.5mm;
+  }
+  .sp-sticker-id {
+    font-size: 7pt; font-weight: 700;
+    font-family: 'JetBrains Mono', 'Courier New', monospace;
+    background: #eff6ff; border: 0.5px solid #bfdbfe;
+    padding: 0.5mm 2mm; border-radius: 2mm;
+    color: #1d4ed8;
+  }
+
+  /* Section labels */
+  .sp-section {
+    font-size: 6pt; font-weight: 800;
+    color: #2563eb; text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 2mm 0 1mm;
+    padding-bottom: 0.5mm;
+    border-bottom: 0.5px solid #e5e7eb;
+  }
+
+  /* Data rows */
+  .sp-row {
+    display: flex; justify-content: space-between;
+    margin-bottom: 1mm; font-size: 7.5pt;
+  }
+  .sp-label { color: #6b7280; font-weight: 600; flex-shrink: 0; }
+  .sp-value { font-weight: 700; color: #111; text-align: right; }
+
+  /* Storage location highlight */
+  .sp-loc-box {
+    background: #f0f9ff; border: 0.5px solid #7dd3fc;
+    border-radius: 2mm; padding: 2mm 3mm;
+    display: flex; justify-content: space-around;
+    margin: 2mm 0;
+  }
+  .sp-loc-part { text-align: center; }
+  .sp-loc-label { font-size: 5.5pt; color: #0369a1; font-weight: 700; text-transform: uppercase; display: block; }
+  .sp-loc-val   { font-size: 9pt; font-weight: 900; color: #0c4a6e; }
+
+  /* QR code area */
+  .sp-qr-wrap {
+    display: flex; justify-content: center;
+    margin: 2mm 0;
+  }
+  .sp-qr-wrap canvas,
+  .sp-qr-wrap img { width: 28mm !important; height: 28mm !important; }
+
+  /* OTP / Collection code */
+  .sp-otp {
+    text-align: center;
+    background: #f0fdf4; border: 0.5px solid #86efac;
+    border-radius: 2mm; padding: 2mm;
+    margin: 2mm 0;
+  }
+  .sp-otp-label { font-size: 5.5pt; color: #16a34a; font-weight: 700; text-transform: uppercase; }
+  .sp-otp-val   { font-size: 14pt; font-weight: 900; letter-spacing: 3mm; color: #15803d; font-family: 'JetBrains Mono', 'Courier New', monospace; }
+
+  /* Dashed separator */
+  .sp-dash { border: none; border-top: 1px dashed #d1d5db; margin: 2mm 0; }
+
+  /* Footer */
+  .sp-footer {
+    text-align: center;
+    font-size: 5pt; color: #9ca3af;
+    border-top: 0.5px solid #e5e7eb;
+    padding-top: 2mm; margin-top: 2mm;
+  }
+
+  /* Scan instruction */
+  .sp-scan-note {
+    text-align: center; font-size: 5.5pt;
+    color: #64748b; margin-top: 1mm;
+  }
+}
